@@ -1,2 +1,2 @@
-# CUMIN
+# CuMIN
 Curated ROIs for Minian

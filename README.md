@@ -1,2 +1,2 @@
 # CUMIN
-Curated MINIAN
+Curated ROIs for Minian

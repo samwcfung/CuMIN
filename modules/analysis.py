@@ -23,6 +23,95 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# Noise-aware activity classification
+# ---------------------------------------------------------------------------
+
+def estimate_noise(trace, method="mad"):
+    """Estimate the noise level of a (baseline) trace segment.
+
+    method="std"  - standard deviation. Simple, but inflated by any real
+                    spontaneous events sitting in the baseline window, which
+                    makes a genuinely active ROI look noisier and can mask it.
+    method="mad"  - median absolute deviation scaled by 1.4826, so it matches
+                    the SD for Gaussian noise. Robust: a few transients in the
+                    baseline window barely move it. Recommended.
+    """
+    trace = np.asarray(trace, dtype=float)
+    trace = trace[np.isfinite(trace)]
+    if trace.size < 3:
+        return 0.0
+    if method == "std":
+        return float(np.std(trace))
+    med = np.median(trace)
+    mad = np.median(np.abs(trace - med))
+    return float(1.4826 * mad)
+
+
+def evaluate_activity(
+    signal_value,
+    baseline_trace,
+    active_threshold,
+    noise_config=None,
+    logger=None,
+):
+    """Decide whether an ROI counts as active.
+
+    Combines an absolute dF/F floor with an optional noise-relative (SNR) gate,
+    so a quiet ROI and a noisy ROI are not judged by the same yardstick.
+
+    Returns (is_active, detail_dict). The detail dict is written into the
+    metrics table so every decision is auditable after the fact.
+    """
+    noise_config = noise_config or {}
+    enabled = noise_config.get("enabled", False)
+    method = noise_config.get("method", "mad")
+    snr_threshold = noise_config.get("snr_threshold", 3.0)
+    require_both = noise_config.get("require_both", True)
+
+    passes_absolute = bool(signal_value > active_threshold)
+
+    detail = {
+        "activity_value": float(signal_value),
+        "active_threshold": float(active_threshold),
+        "passes_absolute": passes_absolute,
+        "noise_criterion_enabled": bool(enabled),
+        "noise_level": np.nan,
+        "snr": np.nan,
+        "snr_threshold": float(snr_threshold),
+        "passes_snr": True,
+    }
+
+    if not enabled:
+        return passes_absolute, detail
+
+    noise = estimate_noise(baseline_trace, method)
+    detail["noise_level"] = float(noise)
+
+    if noise <= 0 or not np.isfinite(noise):
+        # Degenerate baseline (flat or too short): fall back to the absolute
+        # gate rather than dividing by zero and calling everything active.
+        detail["passes_snr"] = passes_absolute
+        if logger:
+            logger.warning(
+                "Noise estimate is zero/invalid; falling back to the absolute "
+                "dF/F criterion for this ROI."
+            )
+        return passes_absolute, detail
+
+    snr = float(signal_value) / noise
+    detail["snr"] = snr
+    passes_snr = bool(snr > snr_threshold)
+    detail["passes_snr"] = passes_snr
+
+    is_active = (
+        (passes_absolute and passes_snr) if require_both
+        else (passes_absolute or passes_snr)
+    )
+    return is_active, detail
+
+
 def analyze_fluorescence(
     fluorescence_data, 
     roi_masks, 
@@ -90,8 +179,18 @@ def analyze_fluorescence(
             analysis_frames = condition_config.get("analysis_frames", config.get("analysis_frames", [100, 580]))
             active_threshold = condition_config.get("active_threshold", config.get("active_threshold", 0.02))
             active_metric = condition_config.get("active_metric", "peak_amplitude")
-            
+            noise_criterion = condition_config.get(
+                "noise_criterion", config.get("noise_criterion", {})
+            )
+
             logger.info(f"Condition {condition}: Analysis frames {analysis_frames}, active metric: {active_metric}")
+            if noise_criterion.get("enabled", False):
+                logger.info(
+                    f"Condition {condition}: noise-aware activity gate ON "
+                    f"(method={noise_criterion.get('method', 'mad')}, "
+                    f"snr_threshold={noise_criterion.get('snr_threshold', 3.0)}, "
+                    f"require_both={noise_criterion.get('require_both', True)})"
+                )
         else:
             # Use default parameters if condition-specific not found
             logger.info(f"No specific parameters for condition {condition}, using defaults")
@@ -99,6 +198,7 @@ def analyze_fluorescence(
             analysis_frames = config.get("analysis_frames", [100, 580])  
             active_threshold = config.get("active_threshold", 0.02)
             active_metric = "peak_amplitude"  # Default metric
+            noise_criterion = config.get("noise_criterion", {})
         
         logger.info(f"Starting fluorescence analysis for condition: {condition}")
         
@@ -367,10 +467,29 @@ def analyze_fluorescence(
                         'peak_frequency': evoked_params['evoked_peak_frequency']  # NEW: Use evoked peak frequency
                     }
                     
-                    # Determine activity based on maximum dF/F value
-                    is_active = evoked_params['max_value'] > active_threshold
+                    # Determine activity: absolute dF/F floor, plus an optional
+                    # noise-relative (SNR) gate so noisy ROIs are not called
+                    # active on excursions that are within their own noise.
                     activity_value = evoked_params['max_value']
-                    logger.info(f"ROI {i+1} activity determined by maximum dF/F: {activity_value:.4f} (threshold: {active_threshold})")
+                    baseline_segment = df_f[baseline_frames[0]:baseline_frames[1] + 1]
+                    is_active, activity_detail = evaluate_activity(
+                        activity_value,
+                        baseline_segment,
+                        active_threshold,
+                        noise_criterion,
+                        logger,
+                    )
+                    if activity_detail["noise_criterion_enabled"]:
+                        logger.info(
+                            f"ROI {i+1} activity: max dF/F={activity_value:.4f} "
+                            f"(thr {active_threshold}) | noise="
+                            f"{activity_detail['noise_level']:.4f} SNR="
+                            f"{activity_detail['snr']:.2f} "
+                            f"(thr {activity_detail['snr_threshold']}) -> "
+                            f"{'ACTIVE' if is_active else 'inactive'}"
+                        )
+                    else:
+                        logger.info(f"ROI {i+1} activity determined by maximum dF/F: {activity_value:.4f} (threshold: {active_threshold})")
                     logger.info(f"ROI {i+1} evoked response contains {evoked_params['evoked_peak_count']} peaks")
 
                     # Add spectral features if enabled
@@ -408,6 +527,11 @@ def analyze_fluorescence(
                     'min_df_f': min_df_f,
                     'std_df_f': std_df_f,
                     'is_active': is_active,
+                    'noise_level': activity_detail.get('noise_level', np.nan),
+                    'activity_snr': activity_detail.get('snr', np.nan),
+                    'snr_threshold': activity_detail.get('snr_threshold', np.nan),
+                    'passes_absolute': activity_detail.get('passes_absolute', True),
+                    'passes_snr': activity_detail.get('passes_snr', True),
                     'condition': condition  # Include condition in metrics
                 }
                 

@@ -1,0 +1,22 @@
+# CuMIN — JupyterLab / interactive notebook extras
+#
+# Required only for notebooks/CUMIN.V6.ipynb. pipeline.py does not need these.
+#
+# IMPORTANT: install these into the SAME environment that launches JupyterLab.
+# ipywidgets is needed kernel-side; jupyterlab_widgets (pulled in automatically)
+# is needed server-side. Split environments are why widgets render as plain text.
+#
+#   pip install -r requirements-notebook.txt
+#   python -m ipykernel install --user --name cuminv3 --display-name "CuMIN"
+
+-r requirements.txt
+
+jupyterlab==4.6.2
+ipykernel
+ipywidgets==8.1.8       # pulls jupyterlab_widgets 3.0.16 + widgetsnbextension 4.0.15
+
+# Interactive denoising / visualization widgets.
+# modules/simple_denoising.py imports these UNGUARDED — not optional for the notebook.
+holoviews==1.23.1
+panel==1.9.3
+param==2.4.1

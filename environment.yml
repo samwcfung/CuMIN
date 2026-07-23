@@ -1,0 +1,52 @@
+name: cumin
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+
+  # Numerics & data
+  - numpy=2.5.1
+  - pandas=3.0.5
+  - scipy=1.18.0
+  - xarray=2026.7.0
+  - networkx=3.6.1
+
+  # Imaging & I/O
+  - scikit-image=0.26.0
+  - tifffile=2026.7.14
+  - h5py=3.16.0
+
+  # Analysis
+  - scikit-learn=1.9.0
+
+  # Plotting
+  - matplotlib=3.11.1
+  - seaborn=0.13.2
+
+  # Excel export
+  - openpyxl=3.1.5
+  - xlsxwriter=3.2.9
+
+  # Config, CLI, logging
+  - pyyaml=6.0.3
+  - tqdm=4.69.0
+  - psutil=7.2.2
+
+  # Interactive / notebook use (optional)
+  - ipython=8.27.0
+  - ipywidgets=8.1.8
+  - holoviews=1.23.1
+  - panel=1.9.3
+  - param=2.4.1
+
+  # Packages without reliable conda-forge builds at these pins
+  - pip:
+      - opencv_python==5.0.0.93
+      - read_roi==1.6.0
+      - roifile==2026.2.10
+      - MedPy==0.5.2
+      - POT==0.9.7
+
+# Optional extras (GPU acceleration, motion correction) are not included here.
+# See requirements-optional.txt.

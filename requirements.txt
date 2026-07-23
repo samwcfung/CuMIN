@@ -1,28 +1,45 @@
-caiman==1.11.3
-cupy_cuda11x==13.4.0
-h5py==3.9.0
-holoviews==1.20.2
-ijroi==0.4.0
-ipython==8.27.0
-ipywidgets==8.1.5
-matplotlib==3.10.1
+# CuMIN — core runtime dependencies
+#
+# Verified end-to-end on this exact set: full `--mode all` run on a big-endian
+# 600-frame stack with a 4-ROI RoiSet completed with 0 errors, all modules
+# import clean, no DeprecationWarnings raised.
+#
+#   pip install -r requirements.txt
+#
+# Optional GPU / motion-correction extras: requirements-optional.txt
+# Notebook (JupyterLab) extras:            requirements-notebook.txt
+
+# --- Numerics & data ---
+numpy==2.5.1
+scipy==1.18.0
+pandas==3.0.5
+xarray==2026.7.0
+networkx==3.6.1
+POT==0.9.7
+
+# --- Imaging & I/O ---
+scikit-image==0.26.0
+tifffile==2026.7.14     # <2024.2.12 calls ndarray.newbyteorder(), removed in numpy 2.0
+opencv-python==5.0.0.93
+h5py==3.16.0            # <3.12 was built against the numpy 1 C API
 MedPy==0.5.2
-networkx==3.3
-numpy==2.2.4
-opencv_python==4.11.0.86
-pandas==2.2.3
-panel==1.6.2
-param==2.2.0
-POT==0.9.5
-psutil==6.0.0
-PyYAML==6.0.2
-PyYAML==6.0.2
+
+# --- ROI handling (ImageJ/FIJI RoiSet .zip) ---
 read_roi==1.6.0
-roifile==2024.9.15
-scikit_learn==1.6.1
-scipy==1.15.2
+roifile==2026.2.10
+
+# --- Analysis ---
+scikit-learn==1.9.0
+
+# --- Plotting ---
+matplotlib==3.11.1
 seaborn==0.13.2
-skimage==0.0
-tifffile==2023.8.12
-tqdm==4.66.5
-xarray==2025.1.1
+
+# --- Excel summary export (imported by modules/utils.py) ---
+openpyxl==3.1.5
+XlsxWriter==3.2.9
+
+# --- Config, CLI, logging ---
+PyYAML==6.0.3
+tqdm==4.69.0
+psutil==7.2.2

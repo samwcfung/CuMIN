@@ -1,0 +1,15 @@
+# CuMIN — optional extras
+#
+# None of these are needed to run pipeline.py. Every import below is wrapped in
+# try/except and the pipeline degrades gracefully (with a warning) if absent.
+# Install only if you need the corresponding feature.
+
+# --- GPU acceleration ---
+# Required only when preprocessing.use_gpu: true in config.yaml.
+# Needs an NVIDIA GPU with a CUDA 11.x toolchain. Match the wheel to your CUDA
+# version (cupy_cuda12x for CUDA 12.x).
+cupy_cuda11x==13.4.0
+
+# --- Motion correction ---
+# Required only when motion_correction.enabled: true in config.yaml.
+normcorre

@@ -61,7 +61,16 @@ roi_processing:
     save_masks_for_cnmf: false             # Disable saving CNMF component H5 files
   save_intermediate_traces: true
   trace_save_format: "csv"
-  
+  intermediate_trace_dir: "intermediate_traces"   # was falling back to this value
+
+  # ROI-specific detrending requires BOTH gates:
+  #   steps.roi_specific_detrend: true  AND  roi_detrend.enabled: true
+  # This block was absent, so the step never ran despite the step flag being
+  # true (modules/roi_processing.py:82).
+  roi_detrend:
+    enabled: true                         # set false to keep previous behaviour
+    polynomial_degree: 1                  # was falling back to 1
+
   # PNR refinement settings
   pnr_refinement:
     noise_freq_cutoff: 0.4                # Cutoff frequency for signal/noise separation
@@ -83,13 +92,14 @@ roi_processing:
     min_background_area: 500              # Minimum pixel size for background region
     background_dilation: 10                # Dilation of ROI masks to avoid using pixels close to ROIs
     periphery_size: 2                     # Size of ROI periphery for local background
-    percentile: 0.2                       # For darkest_pixels method
+    percentile: 0.02                       # For darkest_pixels method
     median_filter_size: 19                 # For pixel noise reduction
     dilation_size: 2                      # For expanding background mask
     cutoff_freq: 0.001                    # For lowpass_filter method
     filter_order: 2                       # For lowpass_filter method
 
     # New slope correction parameters
+    save_intermediate_traces: true      # was falling back to false
     correct_slope: true                 # Enable slope correction
     slope_window: [0, 200]              # Frames to use for slope estimation
     peak_prominence: 0.05               # For excluding peaks from baseline
@@ -116,8 +126,15 @@ analysis:
   
   # New section for evoked response detection
   evoked_detection:
-    threshold: 0.1                         # Threshold for determining response boundaries (fraction of max)
-    min_duration: 3                        # Minimum duration for a valid response in frames
+    # NOTE: 'threshold' and 'min_duration' below are read by NO code. Retained
+    # for reference only. The keys the evoked path actually reads are the
+    # evoked_peak_* ones; without them it silently ran at prominence=0.02,
+    # width=1, height=0.01 (modules/analysis.py:797-799).
+    threshold: 0.1                         # INERT - read by no code
+    min_duration: 3                        # INERT - read by no code
+    evoked_peak_prominence: 0.05           # was falling back to 0.02
+    evoked_peak_width: 1                   # was falling back to 1
+    evoked_peak_height: 0.06               # was falling back to 0.01
   
   # Baseline parameters for different conditions
   condition_specific:
@@ -132,20 +149,44 @@ analysis:
     "10um":
       baseline_frames: [0, 200]              # Range for baseline calculation
       analysis_frames: [230, 580]            # Analyze only post-stimulus frames 
-      active_threshold: 0.02                  # Threshold for determining if an evoked ROI is active
+      active_threshold: 0.02                  # absolute dF/F floor
       active_metric: "max_df_f"        # Use peak amplitude to determine activity or 'max_df_f'
+      # Noise-aware gate: an ROI must clear BOTH the absolute floor above and
+      # an SNR floor relative to its own baseline noise. Set enabled: false to
+      # restore the previous absolute-only behaviour.
+      noise_criterion:
+        enabled: true
+        method: "mad"                         # "mad" (robust) or "std"
+        snr_threshold: 3.0                    # max dF/F must exceed 3x baseline noise
+        require_both: true                    # true = AND (absolute AND snr)
       
     # For 25um (evoked activity)
     "25um":
       baseline_frames: [0, 200]              # Range for baseline calculation
       analysis_frames: [230, 580]            # Analyze only post-stimulus frames
-      active_threshold: 0.02                  # Threshold for determining if an evoked ROI is active
+      active_threshold: 0.02                  # absolute dF/F floor
       active_metric: "max_df_f"        # Use peak amplitude to determine activity
+      # Noise-aware gate: an ROI must clear BOTH the absolute floor above and
+      # an SNR floor relative to its own baseline noise. Set enabled: false to
+      # restore the previous absolute-only behaviour.
+      noise_criterion:
+        enabled: true
+        method: "mad"                         # "mad" (robust) or "std"
+        snr_threshold: 3.0                    # max dF/F must exceed 3x baseline noise
+        require_both: true                    # true = AND (absolute AND snr)
   
   # Default parameters (used if condition is not recognized)
   baseline_frames: [0, 200]                # Default range for baseline calculation
   analysis_frames: [230, 580]              # Default range for analysis
   active_threshold: 0.1                    # Default threshold for activity
+
+  # Global default noise-aware gate, used for conditions that do not define
+  # their own noise_criterion block (and as the fallback for unknown conditions).
+  noise_criterion:
+    enabled: false                         # off by default; per-condition blocks enable it
+    method: "mad"
+    snr_threshold: 3.0
+    require_both: true
   
   # Baseline calculation parameters
   baseline_method: "percentile"            # Options: "percentile", "mean", "min"
@@ -194,10 +235,16 @@ analysis:
   
   # Quality control thresholds
   qc_thresholds:
-    min_snr: 1.5                           # Minimum signal-to-noise ratio
-    max_baseline_var: 15.0                 # Maximum baseline variance (%)
-    min_event_count: 1                     # Minimum events per minute
-    max_motion_correlation: 0.6            # Maximum correlation with motion trace
+    # NOTE: the four keys below are read by NO code. perform_qc_checks
+    # (modules/analysis.py:729-762) reads only min_variance / max_jump /
+    # max_drift, which were absent - so QC ran entirely on hardcoded values.
+    min_snr: 1.5                           # INERT - read by no code
+    max_baseline_var: 15.0                 # INERT - read by no code
+    min_event_count: 1                     # INERT - read by no code
+    max_motion_correlation: 0.6            # INERT - read by no code
+    min_variance: 0.01                     # was falling back to 0.01
+    max_jump: 0.5                          # was falling back to 0.5
+    max_drift: 0.3                         # was falling back to 0.3
 
 visualization:
   roi_color_map: "viridis"                 # Colormap for ROI visualization
@@ -212,9 +259,36 @@ visualization:
     - "quality_metrics"                    # Quality control metrics
 
 advanced_analysis:
-  enabled: true                            # Enable advanced analysis
-  methods:
-    - "correlation"                        # ROI correlation analysis
-    - "clustering"                         # Hierarchical clustering of ROIs
-    - "population_activity"                # Population activity analysis
-  save_detailed_results: true              # Save comprehensive analysis results
+  enabled: true                            # Read by pipeline.py
+
+  # NOTE: 'methods' and 'save_detailed_results' below are read by NO code.
+  # AdvancedFluorescenceAnalysis.__init__ (modules/advanced_analysis.py:90-107)
+  # reads the *_enabled flags and the ml/correlation/emd blocks instead. None
+  # existed, so n_clusters=3, distance_threshold=50 and n_bins=20 were hardcoded
+  # and the methods list had no effect.
+  methods:                                 # INERT - read by no code
+    - "correlation"
+    - "clustering"
+    - "population_activity"
+  save_detailed_results: true              # INERT - read by no code
+
+  ml_enabled: true                         # was falling back to true
+  correlation_enabled: true                # was falling back to true
+  emd_enabled: true                        # was falling back to true
+
+  ml:
+    n_clusters: 3                          # was falling back to 3
+    feature_selection:                     # was falling back to this list
+      - "peak_amplitude"
+      - "peak_rise_time"
+      - "std_df_f"
+
+  correlation:
+    distance_threshold: 50                 # was falling back to 50
+    method: "pearson"                      # was falling back to "pearson"
+
+  emd:
+    features:                              # was falling back to this list
+      - "peak_amplitude"
+      - "std_df_f"
+    n_bins: 20                             # was falling back to 20

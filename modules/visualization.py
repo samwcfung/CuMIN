@@ -116,7 +116,7 @@ def generate_visualizations(
                 metrics_df,
                 tif_path,
                 os.path.join(vis_dir, f"roi_map{title_suffix.replace(' ', '_')}.png"),
-                colormap=config.get("roi_color_map", "viridis"),
+                colormap=viz_config.get("roi_color_map", "viridis"),
                 logger=logger
             )
         elif plot_type == "event_summary":
@@ -159,7 +159,7 @@ def generate_visualizations(
             )
     
     # Individual ROI plots if enabled
-    if config.get("save_individual_plots", True):
+    if viz_config.get("save_individual_plots", True):
         roi_plots_dir = os.path.join(vis_dir, "individual_rois")
         os.makedirs(roi_plots_dir, exist_ok=True)
         

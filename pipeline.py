@@ -111,6 +111,17 @@ def load_config(config_path, args=None):
                 config["analysis"]["condition_specific"]["0um"]["active_metric"] = "max_df_f"
                 logging.info("Updated '0um' condition to use max_df_f as active_metric")
         
+        # --- strict config handling -------------------------------------
+        # Validate before any compute, then wrap so that any remaining
+        # missing-key read is logged instead of silently using a hardcoded
+        # default. Set CUMIN_CONFIG_STRICT=0 to downgrade validation to warnings.
+        from modules.config_schema import validate_config, wrap_strict
+
+        strict = os.environ.get("CUMIN_CONFIG_STRICT", "1") != "0"
+        report = validate_config(config, logging.getLogger(), strict=strict)
+        config = wrap_strict(config, strict=False)
+        config["_validation_report"] = report
+
         return config
     except Exception as e:
         logging.error(f"Failed to load configuration: {str(e)}")
@@ -1126,6 +1137,19 @@ def main():
         logger.info(f"Pipeline summary saved to {summary_path}")
     except Exception as e:
         logger.error(f"Failed to write final pipeline summary: {e}", exc_info=True)
+
+    # Record exactly which parameters this run used, and whether any hardcoded
+    # default fired, so the outputs are self-documenting.
+    try:
+        from modules.config_schema import dump_resolved_config
+        dump_resolved_config(
+            {k: v for k, v in config.items() if k != "_validation_report"},
+            args.output_dir,
+            logger,
+            validation_report=config.get("_validation_report", {}),
+        )
+    except Exception as e:
+        logger.warning(f"Could not write config provenance: {e}")
 
     logger.info(f"Pipeline execution finished in {total_time:.2f} seconds.")
     logger.info("=" * 80)

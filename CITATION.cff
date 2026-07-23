@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+title: "CuMIN: Curated ROIs for Minian"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: "Fung"
+    given-names: "Sam"
+    affiliation: "Leslie Dan Faculty of Pharmacy, University of Toronto"
+    # orcid: "https://orcid.org/0000-0000-0000-0000"   # <- add yours
+  # - family-names: ""
+  #   given-names: ""
+  #   affiliation: ""
+repository-code: "https://github.com/samwcfung/CuMIN"
+abstract: >-
+  A modular pipeline for extracting and analysing calcium fluorescence traces
+  from manually curated ROIs in spinal dorsal horn slice recordings. Applies
+  photobleaching correction, background removal and denoising, extracts per-ROI
+  dF/F traces, detects events, and produces per-slice, per-mouse and
+  per-pain-model summaries.
+keywords:
+  - calcium imaging
+  - spinal cord
+  - dorsal horn
+  - chronic pain
+  - ROI analysis
+license: MIT          # <- change if you choose a different licence
+version: "1.0.0"      # <- bump per release
+date-released: "2026-07-23"   # <- update on release
+
+# Uncomment and complete once the manuscript is published, so that citing the
+# software also points at the paper.
+# preferred-citation:
+#   type: article
+#   title: ""
+#   authors:
+#     - family-names: "Fung"
+#       given-names: "Sam"
+#   journal: ""
+#   year:
+#   doi: ""

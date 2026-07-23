@@ -1,0 +1,63 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+notebooks/Untitled*.ipynb
+
+# --- Pipeline outputs -------------------------------------------------
+# Results are regenerated from data + config; they do not belong in git.
+output/
+outputs/
+results/
+testoutput*/
+*_output/
+resolved_config.yaml
+config_provenance.json
+pipeline_summary.json
+logs/
+
+# Tuned configs written by the notebook (cell 33). Promote to config/ if you
+# want to keep one, rather than committing every experiment.
+notebooks/optimized_config.yaml
+
+# --- Imaging data -----------------------------------------------------
+# Raw stacks and ROI sets are large and belong in a data repository
+# (e.g. Zenodo / OSF / institutional storage), not in git.
+*.tif
+*.tiff
+*.h5
+*.hdf5
+RoiSet*.zip
+*.roi
+
+# --- Generated figures / tables ---------------------------------------
+*.png
+*.pdf
+*.svg
+*.xlsx
+*.csv
+# Keep anything deliberately committed under docs/ or examples/
+!docs/**/*.png
+!examples/**/*.csv
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp

@@ -348,6 +348,15 @@ def analyze_fluorescence(
                 spectral_features = {}
                 is_active = False
                 activity_value = 0.0
+                activity_detail = {
+                    "noise_level": np.nan,
+                    "snr": np.nan,
+                    "snr_threshold": np.nan,
+                    "passes_absolute": True,
+                    "passes_snr": True,
+                    "noise_criterion_enabled": False,
+                }
+
                 
                 # Check condition for appropriate analysis approach
                 if condition == "0um":
